@@ -4,7 +4,6 @@ description: Migrate Oracle Database to PostgreSQL database in a Java project
 ---
 
 This is first line.
-    ```md
     /~~ 
     ~ This is skill comment that will not be synchronized to downstream repos.
     ~/
