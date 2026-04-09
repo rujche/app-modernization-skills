@@ -41,11 +41,11 @@ SKILL_CONTENT="$(awk '
   }
 ' "$SKILL_FILE")"
 
-# Strip /~~ ... ~/ comment blocks
+# Strip /~~ ... ~/ comment blocks (allowing optional leading whitespace)
 SKILL_CONTENT="$(echo "$SKILL_CONTENT" | awk '
   BEGIN { in_comment = 0 }
-  /^\/~~/ { in_comment = 1; next }
-  /^~\// { in_comment = 0; next }
+  /^[[:space:]]*\/~~/ { in_comment = 1; next }
+  /^[[:space:]]*~\// { in_comment = 0; next }
   { if (!in_comment) print }
 ')"
 
