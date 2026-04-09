@@ -1,0 +1,128 @@
+name: Sync Skills to Downstream Repos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/**'
+      - 'skill-mapping.csv'
+
+  workflow_dispatch:
+    inputs:
+      skill_branch:
+        description: 'Skill repo branch to sync from'
+        required: false
+        default: 'main'
+      # Per-repo branch parameters. Set to empty string ("") to skip syncing to that repo.
+      extension_repo_branch:
+        description: 'Extension repo branch to sync into (leave empty to skip)'
+        required: false
+        default: 'main'
+      cli_repo_branch:
+        description: 'CLI repo branch to sync into (leave empty to skip)'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  sync-extension:
+    name: Sync to Extension Repo
+    runs-on: ubuntu-latest
+    # Skipped when extension_repo_branch is explicitly set to empty string
+    if: >-
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.extension_repo_branch != '')
+    steps:
+      - name: Checkout skill repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.skill_branch || 'main' }}
+          path: skill-repo
+
+      - name: Checkout extension repo
+        uses: actions/checkout@v4
+        with:
+          repository: devdiv-azure-service-dmitryr/azure-java-migration-copilot-vscode-extension
+          ref: ${{ github.event.inputs.extension_repo_branch || 'main' }}
+          path: extension-repo
+          token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+
+      - name: Sync skill files from CSV mapping
+        run: |
+          chmod +x skill-repo/scripts/sync-skills.sh
+          # Read skill-mapping.csv row by row (skip header), sync each skill file
+          tail -n +2 skill-repo/skill-mapping.csv | while IFS=',' read -r SKILL_PATH EXT_PATH _CLI_PATH; do
+            SKILL_PATH="$(echo "$SKILL_PATH" | xargs)"
+            EXT_PATH="$(echo "$EXT_PATH" | xargs)"
+            SKILL_FILE="skill-repo/skills/$SKILL_PATH"
+            DOWNSTREAM_FILE="extension-repo/$EXT_PATH"
+            bash skill-repo/scripts/sync-skills.sh "$SKILL_FILE" "$DOWNSTREAM_FILE"
+          done
+
+      - name: Create Pull Request in Extension Repo
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: extension-repo
+          token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+          branch: automated/sync-skills-from-skill-repo
+          commit-message: "chore: sync skill files from skill repo"
+          title: "chore: sync skill files from skill repo"
+          body: |
+            This PR was automatically created by the [Sync Skills workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            It syncs skill file content from the skill repo (`${{ github.event.inputs.skill_branch || 'main' }}` branch) into this repo.
+
+            **Please review the changes carefully before merging.**
+          labels: automated,skill-sync
+
+  sync-cli:
+    name: Sync to CLI Repo
+    runs-on: ubuntu-latest
+    # Skipped when cli_repo_branch is explicitly set to empty string
+    if: >-
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.cli_repo_branch != '')
+    steps:
+      - name: Checkout skill repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.skill_branch || 'main' }}
+          path: skill-repo
+
+      - name: Checkout CLI repo
+        uses: actions/checkout@v4
+        with:
+          repository: devdiv-azure-service-dmitryr/modernize-cli
+          ref: ${{ github.event.inputs.cli_repo_branch || 'main' }}
+          path: cli-repo
+          token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+
+      - name: Sync skill files from CSV mapping
+        run: |
+          chmod +x skill-repo/scripts/sync-skills.sh
+          # Read skill-mapping.csv row by row (skip header), sync each skill file
+          tail -n +2 skill-repo/skill-mapping.csv | while IFS=',' read -r SKILL_PATH _EXT_PATH CLI_PATH; do
+            SKILL_PATH="$(echo "$SKILL_PATH" | xargs)"
+            CLI_PATH="$(echo "$CLI_PATH" | xargs)"
+            SKILL_FILE="skill-repo/skills/$SKILL_PATH"
+            DOWNSTREAM_FILE="cli-repo/$CLI_PATH"
+            bash skill-repo/scripts/sync-skills.sh "$SKILL_FILE" "$DOWNSTREAM_FILE"
+          done
+
+      - name: Create Pull Request in CLI Repo
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: cli-repo
+          token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+          branch: automated/sync-skills-from-skill-repo
+          commit-message: "chore: sync skill files from skill repo"
+          title: "chore: sync skill files from skill repo"
+          body: |
+            This PR was automatically created by the [Sync Skills workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            It syncs skill file content from the skill repo (`${{ github.event.inputs.skill_branch || 'main' }}` branch) into this repo.
+
+            **Please review the changes carefully before merging.**
+          labels: automated,skill-sync
