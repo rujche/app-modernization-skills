@@ -62,20 +62,47 @@ jobs:
           done
 
       - name: Create Pull Request in Extension Repo
+        id: create-extension-pr
         uses: peter-evans/create-pull-request@v7
         with:
           path: extension-repo
           token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
-          branch: automated/sync-skills-from-skill-repo
+          branch: automated/sync-skills/${{ github.event.inputs.skill_branch || 'main' }}-to-${{ github.event.inputs.extension_repo_branch || 'main' }}/${{ github.run_id }}
           commit-message: "chore: sync skill files from skill repo"
-          title: "chore: sync skill files from skill repo"
+          title: "chore: sync skill files from skill repo (${{ github.event.inputs.skill_branch || 'main' }} -> ${{ github.event.inputs.extension_repo_branch || 'main' }})"
           body: |
             This PR was automatically created by the [Sync Skills workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
-
-            It syncs skill file content from the skill repo (`${{ github.event.inputs.skill_branch || 'main' }}` branch) into this repo.
-
-            **Please review the changes carefully before merging.**
+            It syncs skill file content from the skill repo into this repo.
+            - **Skill repo branch:** `${{ github.event.inputs.skill_branch || 'main' }}`
+            - **Current repo branch:** `${{ github.event.inputs.extension_repo_branch || 'main' }}`
           labels: automated,skill-sync
+
+      - name: Close old PRs with same branch pair
+        if: steps.create-extension-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+        run: |
+          NEW_PR=${{ steps.create-extension-pr.outputs.pull-request-number }}
+          SKILL_BRANCH="${{ github.event.inputs.skill_branch || 'main' }}"
+          DOWNSTREAM_BRANCH="${{ github.event.inputs.extension_repo_branch || 'main' }}"
+          BRANCH_PREFIX="automated/sync-skills/${SKILL_BRANCH}-to-${DOWNSTREAM_BRANCH}/"
+          NEW_BRANCH="automated/sync-skills/${SKILL_BRANCH}-to-${DOWNSTREAM_BRANCH}/${{ github.run_id }}"
+
+          # List open PRs with the same branch prefix
+          gh pr list \
+            --repo devdiv-azure-service-dmitryr/azure-java-migration-copilot-vscode-extension \
+            --state open \
+            --label skill-sync \
+            --json number,headRefName \
+            --jq ".[] | select(.headRefName | startswith(\"${BRANCH_PREFIX}\")) | select(.headRefName != \"${NEW_BRANCH}\") | .number" | \
+          while read -r OLD_PR; do
+            echo "Closing old PR #${OLD_PR} in favor of #${NEW_PR}"
+            gh pr comment "$OLD_PR" \
+              --repo devdiv-azure-service-dmitryr/azure-java-migration-copilot-vscode-extension \
+              --body "Closing this PR in favor of #${NEW_PR}"
+            gh pr close "$OLD_PR" \
+              --repo devdiv-azure-service-dmitryr/azure-java-migration-copilot-vscode-extension
+          done
 
   sync-cli:
     name: Sync to CLI Repo
@@ -112,17 +139,44 @@ jobs:
           done
 
       - name: Create Pull Request in CLI Repo
+        id: create-cli-pr
         uses: peter-evans/create-pull-request@v7
         with:
           path: cli-repo
           token: ${{ secrets.DOWNSTREAM_REPO_PAT }}
-          branch: automated/sync-skills-from-skill-repo
+          branch: automated/sync-skills/${{ github.event.inputs.skill_branch || 'main' }}-to-${{ github.event.inputs.cli_repo_branch || 'main' }}/${{ github.run_id }}
           commit-message: "chore: sync skill files from skill repo"
-          title: "chore: sync skill files from skill repo"
+          title: "chore: sync skill files from skill repo (${{ github.event.inputs.skill_branch || 'main' }} -> ${{ github.event.inputs.cli_repo_branch || 'main' }})"
           body: |
             This PR was automatically created by the [Sync Skills workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
-
-            It syncs skill file content from the skill repo (`${{ github.event.inputs.skill_branch || 'main' }}` branch) into this repo.
-
-            **Please review the changes carefully before merging.**
+            It syncs skill file content from the skill repo into this repo.
+            - **Skill repo branch:** `${{ github.event.inputs.skill_branch || 'main' }}`
+            - **Downstream repo branch:** `${{ github.event.inputs.cli_repo_branch || 'main' }}`
           labels: automated,skill-sync
+
+      - name: Close old PRs with same branch pair
+        if: steps.create-cli-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_REPO_PAT }}
+        run: |
+          NEW_PR=${{ steps.create-cli-pr.outputs.pull-request-number }}
+          SKILL_BRANCH="${{ github.event.inputs.skill_branch || 'main' }}"
+          DOWNSTREAM_BRANCH="${{ github.event.inputs.cli_repo_branch || 'main' }}"
+          BRANCH_PREFIX="automated/sync-skills/${SKILL_BRANCH}-to-${DOWNSTREAM_BRANCH}/"
+          NEW_BRANCH="automated/sync-skills/${SKILL_BRANCH}-to-${DOWNSTREAM_BRANCH}/${{ github.run_id }}"
+
+          # List open PRs with the same branch prefix
+          gh pr list \
+            --repo devdiv-azure-service-dmitryr/modernize-cli \
+            --state open \
+            --label skill-sync \
+            --json number,headRefName \
+            --jq ".[] | select(.headRefName | startswith(\"${BRANCH_PREFIX}\")) | select(.headRefName != \"${NEW_BRANCH}\") | .number" | \
+          while read -r OLD_PR; do
+            echo "Closing old PR #${OLD_PR} in favor of #${NEW_PR}"
+            gh pr comment "$OLD_PR" \
+              --repo devdiv-azure-service-dmitryr/modernize-cli \
+              --body "Closing this PR in favor of #${NEW_PR}"
+            gh pr close "$OLD_PR" \
+              --repo devdiv-azure-service-dmitryr/modernize-cli
+          done
