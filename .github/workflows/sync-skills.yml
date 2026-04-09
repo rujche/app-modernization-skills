@@ -151,7 +151,7 @@ jobs:
             This PR was automatically created by the [Sync Skills workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
             It syncs skill file content from the skill repo into this repo.
             - **Skill repo branch:** `${{ github.event.inputs.skill_branch || 'main' }}`
-            - **Downstream repo branch:** `${{ github.event.inputs.cli_repo_branch || 'main' }}`
+            - **Current repo branch:** `${{ github.event.inputs.cli_repo_branch || 'main' }}`
           labels: automated,skill-sync
 
       - name: Close old PRs with same branch pair
