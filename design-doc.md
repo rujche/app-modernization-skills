@@ -80,6 +80,8 @@ Here is a proposed solution to this problem:
 
 ### About the GitHub Actions
 
+#### GitHub Actions in current repo
+
 - Parameters
     - Skill repo branch. Default is `main`.
     - Extension repo branch. Default is `main`. Set to empty string (`""`) to skip syncing to the Extension repo.
@@ -88,7 +90,9 @@ Here is a proposed solution to this problem:
     - Automatically. It will be triggered automatically with default parameters when there are any updates in the `main` branch of the `skill repo`.
     - Manually. Any developer can trigger the pipeline with modified parameters when necessary.
 
-### Downstream repo update
+#### GitHub actions in downstream repo
+
+If downstream repos have github actios to test the skill, it can add a parameter: `Skill repo branch`. When the GitHub action starts, it will sync the skills before do other steps. The parameter's default value is empty string, which means it will not sync the skills.
 
 ### Example PR
 
@@ -96,5 +100,3 @@ Here is an example PR created automatically by GitHub Actions to upgrade the Spr
 
 ### Other ideas
 - Create `CONTRIBUTING.md` file in the downstream skill folder about how to update the skill files.
-
-- Update the msbench pipeline in the downstream repos: Add a new parameter: `branch name of skill repo`. Before run the msbench, the pipeline will sync the skill files first.
