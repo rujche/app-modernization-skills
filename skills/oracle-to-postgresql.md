@@ -8,3 +8,5 @@ This is first line.
     ~ This is skill comment that will not be synchronized to downstream repos.
     ~/
 This is second line.
+
+Rujun Chen added the third line.
